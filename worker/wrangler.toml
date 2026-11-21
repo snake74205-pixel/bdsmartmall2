@@ -1,0 +1,27 @@
+name = "bdsmartmall-worker"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+[vars]
+ALLOWED_ORIGINS = "*"
+DELIVERY_INSIDE_DHAKA = "70"
+DELIVERY_OUTSIDE_DHAKA = "120"
+SUPPORT_WHATSAPP = "01687920860"
+VENDOR_COMMISSION_AFTER_MONTHS = "6"
+VENDOR_COMMISSION_RATE = "0.05"
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bd-smartmall"
+database_id = "8c1787a3-7483-4c56-ba7e-d6c399c30fc3"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "d249328b3050412ab446dee0448c00f2"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "bdsmartmall-media"
