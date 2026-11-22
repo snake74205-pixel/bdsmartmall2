@@ -32,9 +32,10 @@ export const CategoryListingGrid: React.FC<Props> = ({ selectedSubCategory, onSe
         <input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="ক্যাটাগরি খুঁজুন (যেমন: হুডি, শাড়ি, ব্যাগ)..."
+          placeholder="ক্যাটাগরি খুঁজুন..."
           style={{
-            minWidth: '220px',
+            minWidth: '180px',
+            flex: '1 1 200px',
             padding: '9px 12px',
             borderRadius: '12px',
             border: '1px solid #334155',
@@ -111,13 +112,13 @@ export const CategoryListingGrid: React.FC<Props> = ({ selectedSubCategory, onSe
                 alignItems: 'center',
               }}
             >
-              <span style={{ fontWeight: 800, fontSize: '1rem', color: '#f8fafc' }}>
+              <span style={{ fontWeight: 800, fontSize: '0.98rem', color: '#f8fafc' }}>
                 ✦ {group.title} ({group.totalCount}) ✦
               </span>
               <span style={{ fontSize: '0.78rem', color: '#cbd5e1' }}>{group.items.length} আইটেম</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(108px, 1fr))', gap: '10px' }}>
               {group.items.map((item) => {
                 const isSelected = selectedSubCategory === item.name;
                 return (
@@ -128,7 +129,7 @@ export const CategoryListingGrid: React.FC<Props> = ({ selectedSubCategory, onSe
                     style={{
                       position: 'relative',
                       textAlign: 'center',
-                      padding: '14px 8px 12px',
+                      padding: '16px 8px 12px',
                       borderRadius: '14px',
                       border: isSelected ? `2px solid ${group.badgeColor}` : '1px solid rgba(255,255,255,0.1)',
                       background: isSelected ? 'rgba(56,189,248,0.14)' : '#0f172a',
@@ -143,20 +144,20 @@ export const CategoryListingGrid: React.FC<Props> = ({ selectedSubCategory, onSe
                     <span
                       style={{
                         position: 'absolute',
-                        top: '6px',
-                        right: '6px',
-                        padding: '2px 6px',
+                        top: '5px',
+                        right: '5px',
+                        padding: '1px 6px',
                         borderRadius: '999px',
-                        fontSize: '0.7rem',
+                        fontSize: '0.68rem',
                         fontWeight: 700,
-                        background: 'rgba(168,85,247,0.22)',
+                        background: 'rgba(168,85,247,0.25)',
                         color: '#e9d5ff',
                       }}
                     >
                       {item.count}
                     </span>
-                    <span style={{ fontSize: '1.6rem', lineHeight: 1.2 }}>{item.emoji.trim()}</span>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, lineHeight: 1.25 }}>{item.name}</span>
+                    <span style={{ fontSize: '1.5rem', lineHeight: 1.2 }}>{item.emoji.trim()}</span>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, lineHeight: 1.25 }}>{item.name}</span>
                   </button>
                 );
               })}

@@ -121,7 +121,7 @@ app.post('/api/fraud-check', async (c) => {
 
 app.post('/api/orders', async (c) => {
   const body = await c.req.json().catch(() => ({}));
-  const id = `ord_${Date.now()}`;
+  const id = String(body.id || `ord_${Date.now()}`);
   const zone = body.zone === 'outside' ? 'outside_dhaka' : 'inside_dhaka';
   const deliveryFee =
     zone === 'inside_dhaka'
@@ -132,8 +132,8 @@ app.post('/api/orders', async (c) => {
 
   if (c.env.DB) {
     await c.env.DB.prepare(
-      `INSERT INTO orders (id, customer_name, customer_phone, customer_address, zone, payment_method, subtotal, delivery_fee, total_amount, items_json)
-       VALUES (?, ?, ?, ?, ?, 'open_box_cod', ?, ?, ?, ?)`
+      `INSERT OR REPLACE INTO orders (id, customer_name, customer_phone, customer_address, zone, payment_method, subtotal, delivery_fee, total_amount, cost_of_goods, items_json)
+       VALUES (?, ?, ?, ?, ?, 'open_box_cod', ?, ?, ?, ?, ?)`
     )
       .bind(
         id,
@@ -144,6 +144,7 @@ app.post('/api/orders', async (c) => {
         subtotal,
         deliveryFee,
         totalAmount,
+        Number(body.costOfGoods || 0),
         JSON.stringify(body.items || [])
       )
       .run();

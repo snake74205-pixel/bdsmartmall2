@@ -16,6 +16,33 @@ interface ProductItem {
   reelUrl: string;
 }
 
+interface CartEntry {
+  product: ProductItem;
+  qty: number;
+}
+
+interface OrderRecord {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  zone: 'inside' | 'outside';
+  items: { title: string; qty: number; price: number; buyPrice: number }[];
+  subtotal: number;
+  deliveryFee: number;
+  totalAmount: number;
+  status: 'pending' | 'confirmed' | 'delivered';
+  createdAt: string;
+}
+
+interface ExpenseItem {
+  id: string;
+  title: string;
+  amount: number;
+}
+
+const STORAGE_KEY = 'bdsmartmall_v5_state';
+
 const INITIAL_PRODUCTS: ProductItem[] = [
   {
     id: 'p1',
@@ -49,6 +76,10 @@ const INITIAL_PRODUCTS: ProductItem[] = [
   },
 ];
 
+const INITIAL_EXPENSES: ExpenseItem[] = [
+  { id: 'exp_1', title: 'ফেসবুক ও অপারেশনাল খরচ', amount: 650 },
+];
+
 const DEFAULT_CUSTOM_HTML = `<div class="bd-custom-promo">
   <h3>🔥 স্পেশাল ফ্ল্যাশ ক্যাম্পেইন</h3>
   <p>ওপেন-বক্স ক্যাশ অন ডেলিভারি — পণ্য হাতে পেয়ে চেক করে পেমেন্ট করুন।</p>
@@ -68,32 +99,54 @@ const DEFAULT_CUSTOM_CSS = `.bd-custom-promo {
 }
 .bd-motion-card { animation: bdPulse 5s ease-in-out infinite; }`;
 
-const DEFAULT_CUSTOM_JS = `console.log("BDSMARTMALL v4 Ready");`;
+const DEFAULT_CUSTOM_JS = `console.log("BDSMARTMALL v5 Active");`;
+
+function loadSavedState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 export default function App() {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const saved = loadSavedState();
+
+  const [isAdmin, setIsAdmin] = useState<boolean>(Boolean(saved?.isAdmin));
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminPin, setAdminPin] = useState('');
   const [pinError, setPinError] = useState('');
 
-  const [builderMode, setBuilderMode] = useState<'drag' | 'code' | 'preview'>('drag');
-  const [sections, setSections] = useState<SectionId[]>([
-    'slider',
-    'categories',
-    'custom_code_block',
-    'products',
-    'reels',
-    'fraud_and_pnl',
-  ]);
+  const [builderMode, setBuilderMode] = useState<'drag' | 'code'>('drag');
+  const [sections, setSections] = useState<SectionId[]>(
+    Array.isArray(saved?.sections) && saved.sections.length
+      ? saved.sections
+      : ['slider', 'categories', 'custom_code_block', 'products', 'reels', 'fraud_and_pnl']
+  );
   const [draggedSection, setDraggedSection] = useState<SectionId | null>(null);
-  const [layoutMsg, setLayoutMsg] = useState('');
+  const [statusMsg, setStatusMsg] = useState('');
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>('');
 
-  const [customHtml, setCustomHtml] = useState(DEFAULT_CUSTOM_HTML);
-  const [customCss, setCustomCss] = useState(DEFAULT_CUSTOM_CSS);
-  const [customJs, setCustomJs] = useState(DEFAULT_CUSTOM_JS);
+  const [customHtml, setCustomHtml] = useState<string>(saved?.customHtml || DEFAULT_CUSTOM_HTML);
+  const [customCss, setCustomCss] = useState<string>(saved?.customCss || DEFAULT_CUSTOM_CSS);
+  const [customJs, setCustomJs] = useState<string>(saved?.customJs || DEFAULT_CUSTOM_JS);
 
-  const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState<ProductItem[]>(
+    Array.isArray(saved?.products) && saved.products.length ? saved.products : INITIAL_PRODUCTS
+  );
+  const [cart, setCart] = useState<CartEntry[]>([]);
+  const [orders, setOrders] = useState<OrderRecord[]>(
+    Array.isArray(saved?.orders) ? saved.orders : []
+  );
+  const [expensesList, setExpensesList] = useState<ExpenseItem[]>(
+    Array.isArray(saved?.expensesList) ? saved.expensesList : INITIAL_EXPENSES
+  );
+  const [expenseTitle, setExpenseTitle] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
+
+  // Add / Edit product form
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState('সলিড হুডি');
   const [newBuy, setNewBuy] = useState('');
@@ -102,22 +155,43 @@ export default function App() {
   const [newImageUrl, setNewImageUrl] = useState('');
   const [newReelUrl, setNewReelUrl] = useState('');
 
-  // Quick Order (Open-Box COD) modal state
-  const [orderingProduct, setOrderingProduct] = useState<ProductItem | null>(null);
+  // Checkout state (single product or cart)
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [directItem, setDirectItem] = useState<CartEntry | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
-  const [orderNotice, setOrderNotice] = useState('');
-
   const [zone, setZone] = useState<'inside' | 'outside'>('inside');
+
+  // Fraud, CSV, Dropshipping
   const [phone, setPhone] = useState('01712345678');
   const [fraudResult, setFraudResult] = useState<string>('নম্বর লিখে চেক করুন');
-  const [expenses, setExpenses] = useState<number>(650);
   const [csvStatus, setCsvStatus] = useState('');
+  const [dropshipProvider, setDropshipProvider] = useState('CJ Dropshipping');
+  const [dropshipCost, setDropshipCost] = useState('600');
+  const [dropshipMargin, setDropshipMargin] = useState('35');
   const [dropshipStatus, setDropshipStatus] = useState('');
 
   const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
   const deliveryCharge = zone === 'inside' ? 70 : 120;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          isAdmin,
+          sections,
+          customHtml,
+          customCss,
+          customJs,
+          products,
+          orders,
+          expensesList,
+        })
+      );
+    } catch {}
+  }, [isAdmin, sections, customHtml, customCss, customJs, products, orders, expensesList]);
 
   useEffect(() => {
     fetch(`${apiBase}/api/layout`)
@@ -140,24 +214,25 @@ export default function App() {
       setShowAdminModal(false);
       setAdminPin('');
       setPinError('');
+      setStatusMsg('অ্যাডমিন মোড চালু হয়েছে');
     } else {
-      setPinError('ভুল পিন (ডিফল্ট পিন: bd2026)');
+      setPinError('ভুল পিন (পিন: bd2026)');
     }
   };
 
   const handleSelectSubCategory = (item: SubCategoryItem, groupTitle: string) => {
     setSelectedSubCategory(item.name);
     setNewCategory(item.name);
-    setLayoutMsg(`${groupTitle} → ${item.name} (${item.count} আইটেম)`);
+    setStatusMsg(`${groupTitle} → ${item.name} (${item.count} আইটেম)`);
   };
 
   const runCustomJs = () => {
     try {
       const fn = new Function(customJs);
       fn();
-      setLayoutMsg('Custom JS সফলভাবে রান হয়েছে!');
+      setStatusMsg('Custom JS রান হয়েছে');
     } catch (err) {
-      setLayoutMsg(`JS ত্রুটি: ${(err as Error).message}`);
+      setStatusMsg(`JS ত্রুটি: ${(err as Error).message}`);
     }
   };
 
@@ -180,30 +255,60 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sections, customHtml, customCss, customJs }),
       });
-      setLayoutMsg('লেআউট ও কাস্টম কোড D1 + KV-তে সেভ হয়েছে!');
+      setStatusMsg('লেআউট ও কাস্টম কোড ব্রাউজার ও সার্ভারে সেভ হয়েছে');
     } catch {
-      setLayoutMsg('প্রিভিউ আপডেট হয়েছে (Worker লাইভ হলে D1 + KV-তে সেভ হবে)');
+      setStatusMsg('লেআউট ও কাস্টম কোড ব্রাউজারে সেভ হয়েছে');
     }
   };
 
-  const addProduct = (e: React.FormEvent) => {
+  const saveProductForm = (e: React.FormEvent) => {
     e.preventDefault();
-    const buy = Number(newBuy);
-    const sell = Number(newSell);
-    if (!newTitle.trim() || sell <= 0) return;
-    setProducts((prev) => [
-      {
-        id: `p_${Date.now()}`,
-        title: newTitle.trim(),
-        category: newCategory.trim() || 'General',
-        buyingPrice: buy,
-        sellingPrice: sell,
-        stock: Number(newStock) || 1,
-        imageUrl: newImageUrl.trim() || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
-        reelUrl: newReelUrl.trim(),
-      },
-      ...prev,
-    ]);
+    const buy = Number(newBuy) || 0;
+    const sell = Number(newSell) || 0;
+    const stock = Number(newStock) || 1;
+    if (!newTitle.trim() || sell <= 0) {
+      setStatusMsg('পণ্যের নাম ও বিক্রির দাম দিন');
+      return;
+    }
+    const img =
+      newImageUrl.trim() ||
+      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80';
+
+    if (editingId) {
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === editingId
+            ? {
+                ...p,
+                title: newTitle.trim(),
+                category: newCategory.trim() || 'General',
+                buyingPrice: buy,
+                sellingPrice: sell,
+                stock,
+                imageUrl: img,
+                reelUrl: newReelUrl.trim(),
+              }
+            : p
+        )
+      );
+      setEditingId(null);
+      setStatusMsg('প্রোডাক্ট আপডেট হয়েছে');
+    } else {
+      setProducts((prev) => [
+        {
+          id: `p_${Date.now()}`,
+          title: newTitle.trim(),
+          category: newCategory.trim() || 'General',
+          buyingPrice: buy,
+          sellingPrice: sell,
+          stock,
+          imageUrl: img,
+          reelUrl: newReelUrl.trim(),
+        },
+        ...prev,
+      ]);
+      setStatusMsg('নতুন প্রোডাক্ট যুক্ত হয়েছে');
+    }
     setNewTitle('');
     setNewBuy('');
     setNewSell('');
@@ -211,47 +316,149 @@ export default function App() {
     setNewReelUrl('');
   };
 
+  const startEditProduct = (p: ProductItem) => {
+    setEditingId(p.id);
+    setNewTitle(p.title);
+    setNewCategory(p.category);
+    setNewBuy(String(p.buyingPrice));
+    setNewSell(String(p.sellingPrice));
+    setNewStock(String(p.stock));
+    setNewImageUrl(p.imageUrl);
+    setNewReelUrl(p.reelUrl);
+    setStatusMsg(`এডিট করছেন: ${p.title}`);
+  };
+
+  const deleteProduct = (id: string) => {
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+    setCart((prev) => prev.filter((c) => c.product.id !== id));
+    setStatusMsg('প্রোডাক্ট মুছে ফেলা হয়েছে');
+  };
+
+  const addToCart = (p: ProductItem) => {
+    setCart((prev) => {
+      const existing = prev.find((c) => c.product.id === p.id);
+      if (existing) {
+        return prev.map((c) => (c.product.id === p.id ? { ...c, qty: c.qty + 1 } : c));
+      }
+      return [...prev, { product: p, qty: 1 }];
+    });
+    setStatusMsg(`কার্টে যুক্ত হয়েছে: ${p.title}`);
+  };
+
+  const openDirectOrder = (p: ProductItem) => {
+    setDirectItem({ product: p, qty: 1 });
+    setCheckoutOpen(true);
+  };
+
+  const openCartOrder = () => {
+    if (!cart.length) return;
+    setDirectItem(null);
+    setCheckoutOpen(true);
+  };
+
+  const activeOrderLines = directItem ? [directItem] : cart;
+  const orderSubtotal = activeOrderLines.reduce((sum, entry) => sum + entry.product.sellingPrice * entry.qty, 0);
+  const orderBuyTotal = activeOrderLines.reduce((sum, entry) => sum + entry.product.buyingPrice * entry.qty, 0);
+
   const submitCodOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orderingProduct || !customerName.trim() || !customerPhone.trim()) return;
-    const total = orderingProduct.sellingPrice + deliveryCharge;
+    if (!activeOrderLines.length || !customerName.trim() || !customerPhone.trim()) return;
+    const total = orderSubtotal + deliveryCharge;
+    const newOrder: OrderRecord = {
+      id: `ORD-${Date.now().toString().slice(-6)}`,
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      customerAddress: customerAddress.trim() || 'বাংলাদেশ',
+      zone,
+      items: activeOrderLines.map((c) => ({
+        title: c.product.title,
+        qty: c.qty,
+        price: c.product.sellingPrice,
+        buyPrice: c.product.buyingPrice,
+      })),
+      subtotal: orderSubtotal,
+      deliveryFee: deliveryCharge,
+      totalAmount: total,
+      status: 'pending',
+      createdAt: new Date().toLocaleTimeString(),
+    };
+
+    setOrders((prev) => [newOrder, ...prev]);
+    if (!directItem) {
+      setCart([]);
+    }
+    setDirectItem(null);
+    setCheckoutOpen(false);
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerAddress('');
+    setStatusMsg(
+      `অর্ডার কনফার্ম (${newOrder.id})! মোট ৳${total} (ওপেন-বক্স COD, ডেলিভারি ৳${deliveryCharge}) | WhatsApp: 01687920860`
+    );
+
     try {
       await fetch(`${apiBase}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerName,
-          customerPhone,
-          customerAddress,
+          id: newOrder.id,
+          customerName: newOrder.customerName,
+          customerPhone: newOrder.customerPhone,
+          customerAddress: newOrder.customerAddress,
           zone,
-          subtotal: orderingProduct.sellingPrice,
+          subtotal: orderSubtotal,
           deliveryFee: deliveryCharge,
           totalAmount: total,
-          items: [{ id: orderingProduct.id, title: orderingProduct.title, price: orderingProduct.sellingPrice }],
+          costOfGoods: orderBuyTotal,
+          items: newOrder.items,
         }),
       });
     } catch {}
-    setOrderNotice(
-      `অর্ডার রিকোয়েস্ট রেডি! পণ্য: ${orderingProduct.title} | মোট: ৳${total} (ডেলিভারি ৳${deliveryCharge}, ওপেন-বক্স COD)। দ্রুত কনফার্মেশনে WhatsApp: 01687920860`
-    );
-    setOrderingProduct(null);
-    setCustomerName('');
-    setCustomerPhone('');
-    setCustomerAddress('');
+  };
+
+  const updateOrderStatus = (id: string, nextStatus: OrderRecord['status']) => {
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)));
+    setStatusMsg(`অর্ডার ${id} → ${nextStatus}`);
+  };
+
+  const addExpenseItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = Number(expenseAmount);
+    if (!expenseTitle.trim() || amt <= 0) return;
+    setExpensesList((prev) => [
+      { id: `exp_${Date.now()}`, title: expenseTitle.trim(), amount: amt },
+      ...prev,
+    ]);
+    setExpenseTitle('');
+    setExpenseAmount('');
+    setStatusMsg('খরচ যুক্ত হয়েছে');
+  };
+
+  const deleteExpenseItem = (id: string) => {
+    setExpensesList((prev) => prev.filter((x) => x.id !== id));
   };
 
   const runFraudCheck = async () => {
+    const clean = phone.replace(/[^0-9]/g, '');
     try {
       const res = await fetch(`${apiBase}/api/fraud-check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ phone: clean }),
       });
       const data = await res.json();
       setFraudResult(`স্কোর: ${data.fraudScore}/100 (${data.riskLevel}) — ${data.note}`);
-    } catch {
-      const valid = /^01[3-9][0-9]{8}$/.test(phone.replace(/[^0-9]/g, ''));
-      setFraudResult(valid ? 'স্কোর: 90/100 (low) — ওপেন-বক্স COD উপযুক্ত' : 'স্কোর: 30/100 (high) — নম্বর যাচাই প্রয়োজন');
+      return;
+    } catch {}
+
+    const valid = /^01[3-9][0-9]{8}$/.test(clean);
+    const lastDigit = clean.length ? Number(clean[clean.length - 1]) : 5;
+    if (!valid) {
+      setFraudResult('স্কোর: 25/100 (high) — সঠিক ১১ ডিজিটের BD নম্বর (01XXXXXXXXX) দিন।');
+    } else if (lastDigit === 0) {
+      setFraudResult('স্কোর: 48/100 (medium) — ডেলিভারি চার্জ অ্যাডভান্স নেওয়া নিরাপদ।');
+    } else {
+      setFraudResult('স্কোর: 92/100 (low) — ফুল ওপেন-বক্স COD উপযুক্ত।');
     }
   };
 
@@ -275,63 +482,94 @@ export default function App() {
       })
       .filter((p) => p.title && p.selling_price > 0);
 
-    const chunkSize = 100;
-    let totalSent = 0;
-    for (let i = 0; i < parsed.length; i += chunkSize) {
-      const chunk = parsed.slice(i, i + chunkSize);
-      try {
-        await fetch(`${apiBase}/api/products/bulk-import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ products: chunk }),
-        });
-      } catch {}
-      setProducts((prev) => [
-        ...chunk.map((c) => ({
-          id: c.id,
-          title: c.title,
-          category: c.category,
-          buyingPrice: c.buying_price,
-          sellingPrice: c.selling_price,
-          stock: c.stock,
-          imageUrl: c.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
-          reelUrl: '',
-        })),
-        ...prev,
-      ]);
-      totalSent += chunk.length;
+    if (!parsed.length) {
+      setCsvStatus('CSV-তে বৈধ (title,buying,selling,stock,category,imageUrl) সারি পাওয়া যায়নি।');
+      return;
     }
-    setCsvStatus(`${totalSent}টি প্রোডাক্ট ব্যাচ আকারে ইম্পোর্ট হয়েছে।`);
+
+    setProducts((prev) => [
+      ...parsed.map((c) => ({
+        id: c.id,
+        title: c.title,
+        category: c.category,
+        buyingPrice: c.buying_price,
+        sellingPrice: c.selling_price,
+        stock: c.stock,
+        imageUrl:
+          c.image_url ||
+          'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+        reelUrl: '',
+      })),
+      ...prev,
+    ]);
+    setCsvStatus(`${parsed.length}টি প্রোডাক্ট ক্যাটালগে যুক্ত হয়েছে।`);
+
+    try {
+      await fetch(`${apiBase}/api/products/bulk-import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ products: parsed.slice(0, 100) }),
+      });
+    } catch {}
   };
 
   const syncDropshipping = async () => {
+    const cost = Number(dropshipCost) || 500;
+    const margin = Number(dropshipMargin) || 30;
+    const syncedSell = Math.round(cost * (1 + margin / 100));
+
+    setProducts((prev) => [
+      {
+        id: `ds_${Date.now()}`,
+        title: `${dropshipProvider} স্যাম্পল আইটেম`,
+        category: 'গ্যাজেটস',
+        buyingPrice: cost,
+        sellingPrice: syncedSell,
+        stock: 25,
+        imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80',
+        reelUrl: '',
+      },
+      ...prev,
+    ]);
+    setDropshipStatus(`${dropshipProvider} (${margin}% মার্জিন) → বিক্রয় দাম ৳${syncedSell} ক্যাটালগে যুক্ত হয়েছে।`);
+
     try {
-      const res = await fetch(`${apiBase}/api/dropshipping/sync`, {
+      await fetch(`${apiBase}/api/dropshipping/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: 'CJ Dropshipping', marginPercent: 35, sampleCost: 600 }),
+        body: JSON.stringify({ provider: dropshipProvider, marginPercent: margin, sampleCost: cost }),
       });
-      const data = await res.json();
-      setDropshipStatus(data.message);
-    } catch {
-      setDropshipStatus('CJ Dropshipping 35% প্রফিট মার্জিন সিঙ্ক রেডি।');
-    }
+    } catch {}
   };
 
   const shareProduct = (p: ProductItem) => {
     const shareText = `${p.title} (${p.category}) — ৳${p.sellingPrice} | ওপেন-বক্স COD (ঢাকা ৳70 / বাইরে ৳120) | WhatsApp: 01687920860`;
-    navigator.clipboard?.writeText(shareText);
-    alert(`শেয়ার কপি রেডি:
-${shareText}`);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(shareText).catch(() => {});
+    }
+    setStatusMsg(`শেয়ার টেক্সট কপি হয়েছে: ${p.title}`);
   };
 
   const visibleProducts = selectedSubCategory
     ? products.filter((p) => p.category.toLowerCase().includes(selectedSubCategory.toLowerCase()))
     : products;
 
-  const totalSales = products.reduce((acc, p) => acc + p.sellingPrice, 0);
-  const totalCost = products.reduce((acc, p) => acc + p.buyingPrice, 0);
-  const netProfit = totalSales - totalCost - expenses;
+  // P&L Calculation: if orders exist, include real orders; else show catalog sample calculation
+  const deliveredOrAllOrders = orders.length ? orders : [];
+  const totalSales = deliveredOrAllOrders.length
+    ? deliveredOrAllOrders.reduce((s, o) => s + o.subtotal, 0)
+    : products.reduce((s, p) => s + p.sellingPrice, 0);
+  const totalCost = deliveredOrAllOrders.length
+    ? deliveredOrAllOrders.reduce(
+        (s, o) => s + o.items.reduce((is, it) => is + it.buyPrice * it.qty, 0),
+        0
+      )
+    : products.reduce((s, p) => s + p.buyingPrice, 0);
+  const totalExpenses = expensesList.reduce((s, x) => s + x.amount, 0);
+  const netProfit = totalSales - totalCost - totalExpenses;
+
+  const cartCount = cart.reduce((s, c) => s + c.qty, 0);
+  const cartSubtotal = cart.reduce((s, c) => s + c.product.sellingPrice * c.qty, 0);
 
   const visibleSections: SectionId[] = isAdmin
     ? sections
@@ -347,11 +585,11 @@ ${shareText}`);
   };
 
   return (
-    <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '18px 14px 64px' }}>
+    <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '18px 14px 72px' }}>
       <style>{customCss}</style>
 
-      {/* Storefront / Admin Header */}
-      <header style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      {/* Header */}
+      <header style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '1.55rem', fontWeight: 800 }}>BDSMARTMALL</h1>
           <small style={{ color: '#94a3b8' }}>
@@ -360,6 +598,16 @@ ${shareText}`);
         </div>
 
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {cartCount > 0 && (
+            <button
+              type="button"
+              onClick={openCartOrder}
+              style={{ padding: '7px 12px', borderRadius: '10px', border: 'none', background: '#f59e0b', color: '#06101d', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer' }}
+            >
+              🛒 কার্ট ({cartCount}) — ৳{cartSubtotal}
+            </button>
+          )}
+
           {!isAdmin ? (
             <button
               type="button"
@@ -405,13 +653,13 @@ ${shareText}`);
 
       {/* Admin PIN Modal */}
       {showAdminModal && (
-        <div style={{ marginBottom: '18px', padding: '14px', borderRadius: '16px', background: '#0b1220', border: '1px solid #38bdf8' }}>
+        <div style={{ marginBottom: '16px', padding: '14px', borderRadius: '16px', background: '#0b1220', border: '1px solid #38bdf8' }}>
           <form onSubmit={unlockAdmin} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             <input
               type="password"
               value={adminPin}
               onChange={(e) => setAdminPin(e.target.value)}
-              placeholder="অ্যাডমিন পিন লিখুন (bd2026)"
+              placeholder="অ্যাডমিন পিন (bd2026)"
               style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }}
             />
             <button type="submit" style={{ padding: '8px 14px', borderRadius: '10px', border: 'none', background: '#38bdf8', color: '#06101d', fontWeight: 700, cursor: 'pointer' }}>
@@ -425,30 +673,33 @@ ${shareText}`);
         </div>
       )}
 
-      {orderNotice && (
-        <div style={{ marginBottom: '14px', padding: '12px 14px', borderRadius: '14px', background: 'rgba(34,197,94,0.14)', border: '1px solid rgba(34,197,94,0.4)', color: '#86efac', fontSize: '0.9rem' }}>
-          {orderNotice}
+      {statusMsg && (
+        <div style={{ marginBottom: '14px', padding: '10px 14px', borderRadius: '12px', background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.35)', color: '#7dd3fc', fontSize: '0.88rem' }}>
+          {statusMsg}
         </div>
       )}
 
-      {layoutMsg && <div style={{ marginBottom: '14px', color: '#4ade80', fontSize: '0.88rem' }}>{layoutMsg}</div>}
-
-      {/* COD Order Drawer/Card */}
-      {orderingProduct && (
+      {/* COD Checkout Panel */}
+      {checkoutOpen && activeOrderLines.length > 0 && (
         <div style={{ marginBottom: '18px', padding: '16px', borderRadius: '18px', background: '#0b1220', border: '1px solid #22c55e' }}>
-          <h3 style={{ marginTop: 0, color: '#4ade80' }}>ওপেন-বক্স COD অর্ডার: {orderingProduct.title}</h3>
+          <h3 style={{ marginTop: 0, color: '#4ade80' }}>
+            ওপেন-বক্স COD চেকআউট (সাবটোটাল ৳{orderSubtotal} + ডেলিভারি ৳{deliveryCharge})
+          </h3>
+          <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '10px' }}>
+            আইটেম: {activeOrderLines.map((x) => `${x.product.title} ×${x.qty}`).join(', ')}
+          </div>
           <form onSubmit={submitCodOrder} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
             <input required placeholder="আপনার নাম" value={customerName} onChange={(e) => setCustomerName(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
-            <input required placeholder="মোবাইল নম্বর (01XXXXXXXXX)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
+            <input required placeholder="মোবাইল (01XXXXXXXXX)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
             <input required placeholder="সম্পূর্ণ ঠিকানা" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
             <select value={zone} onChange={(e) => setZone(e.target.value as 'inside' | 'outside')} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }}>
               <option value="inside">ঢাকার ভেতরে (৳70)</option>
               <option value="outside">ঢাকার বাইরে (৳120)</option>
             </select>
             <button type="submit" style={{ padding: '10px', borderRadius: '10px', border: 'none', background: '#22c55e', color: '#052e16', fontWeight: 800, cursor: 'pointer' }}>
-              অর্ডার কনফার্ম (৳{orderingProduct.sellingPrice + deliveryCharge})
+              অর্ডার কনফার্ম (৳{orderSubtotal + deliveryCharge})
             </button>
-            <button type="button" onClick={() => setOrderingProduct(null)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #475569', background: 'transparent', color: '#cbd5e1', cursor: 'pointer' }}>
+            <button type="button" onClick={() => { setCheckoutOpen(false); setDirectItem(null); }} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #475569', background: 'transparent', color: '#cbd5e1', cursor: 'pointer' }}>
               বন্ধ করুন
             </button>
           </form>
@@ -479,7 +730,7 @@ ${shareText}`);
         </div>
       )}
 
-      {/* Sections */}
+      {/* Main Sections */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
         {visibleSections.map((secId, idx) => (
           <section
@@ -539,15 +790,17 @@ ${shareText}`);
                 </div>
 
                 {isAdmin && (
-                  <form onSubmit={addProduct} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+                  <form onSubmit={saveProductForm} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '16px' }}>
                     <input placeholder="পণ্যের নাম" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
                     <input placeholder="ক্যাটাগরি" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
                     <input placeholder="ইমেজ URL (https://...)" value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
-                    <input placeholder="রিল লিংক (ঐচ্ছিক)" value={newReelUrl} onChange={(e) => setNewReelUrl(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
+                    <input placeholder="রিল URL (ঐচ্ছিক)" value={newReelUrl} onChange={(e) => setNewReelUrl(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
                     <input type="number" placeholder="কেনা দাম (৳)" value={newBuy} onChange={(e) => setNewBuy(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
                     <input type="number" placeholder="বিক্রির দাম (৳)" value={newSell} onChange={(e) => setNewSell(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
                     <input type="number" placeholder="স্টক" value={newStock} onChange={(e) => setNewStock(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
-                    <button type="submit" style={{ padding: '10px', borderRadius: '10px', border: 'none', background: '#38bdf8', color: '#06101d', fontWeight: 700, cursor: 'pointer' }}>+ যুক্ত করুন</button>
+                    <button type="submit" style={{ padding: '10px', borderRadius: '10px', border: 'none', background: '#38bdf8', color: '#06101d', fontWeight: 700, cursor: 'pointer' }}>
+                      {editingId ? '✓ আপডেট' : '+ যুক্ত করুন'}
+                    </button>
                   </form>
                 )}
 
@@ -570,21 +823,46 @@ ${shareText}`);
                               কেনা: ৳{p.buyingPrice} | লাভ: <strong style={{ color: profitPerUnit >= 0 ? '#4ade80' : '#f87171' }}>৳{profitPerUnit}</strong> | স্টক: {p.stock}
                             </div>
                           )}
-                          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '12px', flexWrap: 'wrap' }}>
                             <button
                               type="button"
-                              onClick={() => setOrderingProduct(p)}
-                              style={{ flex: 1, padding: '8px 10px', borderRadius: '10px', border: 'none', background: '#22c55e', color: '#052e16', fontWeight: 700, cursor: 'pointer', fontSize: '0.84rem' }}
+                              onClick={() => openDirectOrder(p)}
+                              style={{ flex: 1, padding: '8px 10px', borderRadius: '10px', border: 'none', background: '#22c55e', color: '#052e16', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem' }}
                             >
                               অর্ডার করুন
                             </button>
                             <button
                               type="button"
-                              onClick={() => shareProduct(p)}
-                              style={{ padding: '8px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.06)', color: '#fff', cursor: 'pointer', fontSize: '0.84rem' }}
+                              onClick={() => addToCart(p)}
+                              style={{ padding: '8px 10px', borderRadius: '10px', border: '1px solid #38bdf8', background: 'transparent', color: '#38bdf8', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem' }}
                             >
-                              🔗 শেয়ার
+                              + কার্ট
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => shareProduct(p)}
+                              style={{ padding: '8px 9px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.06)', color: '#fff', cursor: 'pointer', fontSize: '0.82rem' }}
+                            >
+                              🔗
+                            </button>
+                            {isAdmin && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => startEditProduct(p)}
+                                  style={{ padding: '7px 9px', borderRadius: '8px', border: '1px solid #f59e0b', background: 'transparent', color: '#fbbf24', cursor: 'pointer', fontSize: '0.78rem' }}
+                                >
+                                  এডিট
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteProduct(p.id)}
+                                  style={{ padding: '7px 9px', borderRadius: '8px', border: '1px solid #ef4444', background: 'transparent', color: '#f87171', cursor: 'pointer', fontSize: '0.78rem' }}
+                                >
+                                  ডিলিট
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -596,7 +874,7 @@ ${shareText}`);
 
             {secId === 'reels' && (
               <div>
-                <h3 style={{ marginTop: 0 }}>🎬 শপেবল রিলস (প্রোডাক্ট হাইলাইট)</h3>
+                <h3 style={{ marginTop: 0 }}>🎬 শপেবল রিলস</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px' }}>
                   {products.map((p) => (
                     <div key={`reel_${p.id}`} style={{ borderRadius: '16px', overflow: 'hidden', background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -608,13 +886,13 @@ ${shareText}`);
                       <div style={{ padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                         <div>
                           <div style={{ fontSize: '0.76rem', color: '#a855f7' }}>
-                            {p.reelUrl ? 'রিলস লিংক যুক্ত' : 'শপেবল ফিচার'}
+                            {p.reelUrl ? p.reelUrl : 'শপেবল প্রোডাক্ট রিল'}
                           </div>
                           <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{p.title}</div>
                         </div>
                         <button
                           type="button"
-                          onClick={() => setOrderingProduct(p)}
+                          onClick={() => openDirectOrder(p)}
                           style={{ padding: '6px 10px', borderRadius: '8px', border: 'none', background: '#38bdf8', color: '#06101d', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}
                         >
                           ৳{p.sellingPrice}
@@ -627,46 +905,87 @@ ${shareText}`);
             )}
 
             {isAdmin && secId === 'fraud_and_pnl' && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
-                <div style={{ padding: '16px', borderRadius: '16px', background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <h4 style={{ marginTop: 0 }}>🛡️ ফ্রড চেকার ও ডেলিভারি চার্জ</h4>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-                    <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
-                    <button type="button" onClick={runFraudCheck} style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#38bdf8', color: '#06101d', fontWeight: 700, cursor: 'pointer' }}>চেক</button>
-                  </div>
-                  <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '10px' }}>{fraudResult}</div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button type="button" onClick={() => setZone('inside')} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #38bdf8', background: zone === 'inside' ? '#38bdf8' : 'transparent', color: zone === 'inside' ? '#06101d' : '#fff', cursor: 'pointer' }}>ঢাকা (৳70)</button>
-                    <button type="button" onClick={() => setZone('outside')} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #38bdf8', background: zone === 'outside' ? '#38bdf8' : 'transparent', color: zone === 'outside' ? '#06101d' : '#fff', cursor: 'pointer' }}>বাইরে (৳120)</button>
-                  </div>
-                  <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#7dd3fc' }}>বর্তমান ডেলিভারি চার্জ: ৳{deliveryCharge}</div>
-                </div>
-
-                <div style={{ padding: '16px', borderRadius: '16px', background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <h4 style={{ marginTop: 0 }}>📦 আনলিমিটেড CSV ও ড্রপশিপিং API</h4>
-                  <label style={{ display: 'block', fontSize: '0.82rem', color: '#94a3b8', marginBottom: '6px' }}>CSV (title,buying,selling,stock,category,imageUrl):</label>
-                  <input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} style={{ fontSize: '0.82rem', marginBottom: '8px' }} />
-                  {csvStatus && <div style={{ fontSize: '0.82rem', color: '#4ade80', marginBottom: '8px' }}>{csvStatus}</div>}
-                  <button type="button" onClick={syncDropshipping} style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#a855f7', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}>
-                    🔄 ড্রপশিপিং API সিঙ্ক
-                  </button>
-                  {dropshipStatus && <div style={{ marginTop: '8px', fontSize: '0.82rem', color: '#e9d5ff' }}>{dropshipStatus}</div>}
-                </div>
-
-                <div style={{ padding: '16px', borderRadius: '16px', background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <h4 style={{ marginTop: 0 }}>📊 সেলিং ও লাভ-ক্ষতি ড্যাশবোর্ড</h4>
-                  <div style={{ fontSize: '0.9rem', lineHeight: 1.7 }}>
-                    <div>মোট বিক্রয়: <strong>৳{totalSales}</strong></div>
-                    <div>মোট কেনা দাম: <strong>৳{totalCost}</strong></div>
-                    <div>অন্যান্য খরচ (অ্যাড/অপস): <strong>৳{expenses}</strong></div>
-                    <div style={{ marginTop: '6px', fontSize: '1.05rem', color: netProfit >= 0 ? '#4ade80' : '#f87171', fontWeight: 800 }}>
-                      {netProfit >= 0 ? `নেট লাভ: ৳${netProfit}` : `নেট ক্ষতি: ৳${Math.abs(netProfit)}`}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                  {/* Fraud & Delivery */}
+                  <div style={{ padding: '16px', borderRadius: '16px', background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <h4 style={{ marginTop: 0 }}>🛡️ ফ্রড চেকার ও ডেলিভারি চার্জ</h4>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                      <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
+                      <button type="button" onClick={runFraudCheck} style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#38bdf8', color: '#06101d', fontWeight: 700, cursor: 'pointer' }}>চেক</button>
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '10px' }}>{fraudResult}</div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button type="button" onClick={() => setZone('inside')} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #38bdf8', background: zone === 'inside' ? '#38bdf8' : 'transparent', color: zone === 'inside' ? '#06101d' : '#fff', cursor: 'pointer' }}>ঢাকা (৳70)</button>
+                      <button type="button" onClick={() => setZone('outside')} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #38bdf8', background: zone === 'outside' ? '#38bdf8' : 'transparent', color: zone === 'outside' ? '#06101d' : '#fff', cursor: 'pointer' }}>বাইরে (৳120)</button>
                     </div>
                   </div>
-                  <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>খরচ (৳):</span>
-                    <input type="number" value={expenses} onChange={(e) => setExpenses(Number(e.target.value) || 0)} style={{ width: '100px', padding: '6px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
+
+                  {/* CSV & Dropshipping */}
+                  <div style={{ padding: '16px', borderRadius: '16px', background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <h4 style={{ marginTop: 0 }}>📦 CSV বাল্ক ও ড্রপশিপিং সিঙ্ক</h4>
+                    <input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} style={{ fontSize: '0.8rem', marginBottom: '8px', width: '100%' }} />
+                    {csvStatus && <div style={{ fontSize: '0.8rem', color: '#4ade80', marginBottom: '8px' }}>{csvStatus}</div>}
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                      <input value={dropshipProvider} onChange={(e) => setDropshipProvider(e.target.value)} style={{ flex: 1, minWidth: '100px', padding: '6px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#fff', fontSize: '0.8rem' }} />
+                      <input type="number" value={dropshipCost} onChange={(e) => setDropshipCost(e.target.value)} placeholder="কস্ট" style={{ width: '72px', padding: '6px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#fff', fontSize: '0.8rem' }} />
+                      <input type="number" value={dropshipMargin} onChange={(e) => setDropshipMargin(e.target.value)} placeholder="%" style={{ width: '58px', padding: '6px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#fff', fontSize: '0.8rem' }} />
+                    </div>
+                    <button type="button" onClick={syncDropshipping} style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#a855f7', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem' }}>
+                      🔄 সিঙ্ক ও ক্যাটালগে যোগ
+                    </button>
+                    {dropshipStatus && <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#e9d5ff' }}>{dropshipStatus}</div>}
                   </div>
+
+                  {/* P&L + Expense Adder */}
+                  <div style={{ padding: '16px', borderRadius: '16px', background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <h4 style={{ marginTop: 0 }}>📊 লাভ-ক্ষতি (P&L) ও খরচ</h4>
+                    <div style={{ fontSize: '0.88rem', lineHeight: 1.7 }}>
+                      <div>মোট বিক্রয়: <strong>৳{totalSales}</strong></div>
+                      <div>মোট কেনা দাম: <strong>৳{totalCost}</strong></div>
+                      <div>মোট খরচ: <strong>৳{totalExpenses}</strong></div>
+                      <div style={{ marginTop: '6px', fontSize: '1.05rem', color: netProfit >= 0 ? '#4ade80' : '#f87171', fontWeight: 800 }}>
+                        {netProfit >= 0 ? `নেট লাভ: ৳${netProfit}` : `নেট ক্ষতি: ৳${Math.abs(netProfit)}`}
+                      </div>
+                    </div>
+                    <form onSubmit={addExpenseItem} style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
+                      <input value={expenseTitle} onChange={(e) => setExpenseTitle(e.target.value)} placeholder="খরচের বিবরণ" style={{ flex: 1, minWidth: '100px', padding: '6px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#fff', fontSize: '0.8rem' }} />
+                      <input type="number" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} placeholder="টাকা" style={{ width: '74px', padding: '6px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#fff', fontSize: '0.8rem' }} />
+                      <button type="submit" style={{ padding: '6px 10px', borderRadius: '8px', border: 'none', background: '#22c55e', color: '#052e16', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}>+ খরচ</button>
+                    </form>
+                    <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {expensesList.map((ex) => (
+                        <div key={ex.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#cbd5e1' }}>
+                          <span>{ex.title}: ৳{ex.amount}</span>
+                          <button type="button" onClick={() => deleteExpenseItem(ex.id)} style={{ border: 'none', background: 'transparent', color: '#f87171', cursor: 'pointer' }}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Orders List */}
+                <div style={{ padding: '16px', borderRadius: '16px', background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <h4 style={{ marginTop: 0 }}>🧾 সাম্প্রতিক অর্ডারসমূহ ({orders.length})</h4>
+                  {!orders.length ? (
+                    <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>এখনো কোনো নতুন অর্ডার জমা হয়নি। কোনো প্রোডাক্টে "অর্ডার করুন" চাপলে এখানে দেখাবে।</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {orders.map((o) => (
+                        <div key={o.id} style={{ padding: '10px 12px', borderRadius: '12px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ fontSize: '0.85rem' }}>
+                            <strong>{o.id}</strong> — {o.customerName} ({o.customerPhone}) | ৳{o.totalAmount} ({o.zone === 'inside' ? 'ঢাকা ৳70' : 'বাইরে ৳120'})
+                            <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>{o.customerAddress} — {o.items.map((i) => `${i.title} ×${i.qty}`).join(', ')}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.78rem', padding: '3px 8px', borderRadius: '999px', background: 'rgba(56,189,248,0.15)', color: '#7dd3fc' }}>{o.status}</span>
+                            <button type="button" onClick={() => updateOrderStatus(o.id, 'confirmed')} style={{ padding: '4px 8px', borderRadius: '6px', border: 'none', background: '#38bdf8', color: '#06101d', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>কনফার্ম</button>
+                            <button type="button" onClick={() => updateOrderStatus(o.id, 'delivered')} style={{ padding: '4px 8px', borderRadius: '6px', border: 'none', background: '#22c55e', color: '#052e16', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>ডেলিভারড</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

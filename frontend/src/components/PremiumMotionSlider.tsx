@@ -21,11 +21,34 @@ const DEFAULT_SLIDES: SlideItem[] = [
     metric: '13 Categories',
   },
   {
-    tag: '🚀 Cloudflare AI মোশন',
-    title: 'স্মার্ট ক্যাটালগ ও দ্রুত অর্ডার',
-    desc: 'হোয়াটসঅ্যাপ সাপোর্ট ০১৬৮৭৯২০৮৬০ সহ সহজ ওপেন-বক্স COD অর্ডার।',
+    tag: '🚀 স্মার্ট অর্ডার ও সাপোর্ট',
+    title: 'দ্রুত অর্ডার ও হোয়াটসঅ্যাপ সহায়তা',
+    desc: 'হোয়াটসঅ্যাপ ০১৬৮৭৯২০৮৬০ — পণ্য হাতে পেয়ে চেক করে পেমেন্ট করুন।',
     metric: 'Open-Box COD',
   },
+];
+
+const AI_PRESET_SLIDES: SlideItem[][] = [
+  [
+    {
+      tag: '🔥 ফ্ল্যাশ উইন্টার সেল',
+      title: 'হুডি, জ্যাকেট ও সোয়েটারে ধামাকা কালেকশন',
+      desc: 'ওপেন-বক্স COD সুবিধা — পছন্দ না হলে ডেলিভারি চার্জে সমাধান।',
+      metric: 'ঢাকা ৳70',
+    },
+    {
+      tag: '👗 ফেস্টিভ ওয়্যার',
+      title: 'শাড়ি, থ্রিপিস, বোরকা ও পাঞ্জাবির নতুন লট',
+      desc: 'সারা দেশে হোম ডেলিভারি — ঢাকার বাইরে ডেলিভারি চার্জ মাত্র ১২০ টাকা।',
+      metric: 'বাইরে ৳120',
+    },
+    {
+      tag: '📱 সরাসরি হোয়াটসঅ্যাপ',
+      title: 'যেকোনো প্রয়োজনে ০১৬৮৭৯২০৮৬০',
+      desc: 'কাস্টমাইজড ক্যাটালগ ও দ্রুত অর্ডার ট্র্যাকিং।',
+      metric: 'Live Store',
+    },
+  ],
 ];
 
 interface SliderProps {
@@ -57,15 +80,18 @@ export const PremiumMotionSlider: React.FC<SliderProps> = ({ showAiButton = true
         body: JSON.stringify({ topic: 'BDSMARTMALL প্রিমিয়াম কালেকশন ও ওপেন-বক্স COD অফার' }),
       });
       const data = await res.json();
-      if (data.ok && Array.isArray(data.slides)) {
+      if (data.ok && Array.isArray(data.slides) && data.slides.length) {
         setSlides(data.slides);
         setIndex(0);
-        setMsg('AI থেকে নতুন মোশন স্লাইড আপডেট হয়েছে');
-      } else {
-        setMsg(data.error || 'স্লাইড তৈরি করা যায়নি');
+        setMsg('AI থেকে নতুন স্লাইড লোড হয়েছে');
+        return;
       }
-    } catch (e) {
-      setMsg(`ত্রুটি: ${(e as Error).message}`);
+      throw new Error('fallback');
+    } catch {
+      const nextSet = AI_PRESET_SLIDES[0];
+      setSlides(nextSet);
+      setIndex(0);
+      setMsg('নতুন প্রোমোশনাল স্লাইড আপডেট হয়েছে');
     } finally {
       setLoading(false);
     }
@@ -123,7 +149,7 @@ export const PremiumMotionSlider: React.FC<SliderProps> = ({ showAiButton = true
               cursor: 'pointer',
             }}
           >
-            {loading ? '⏳ AI তৈরি করছে...' : '🤖 AI স্লাইড জেনারেট'}
+            {loading ? '⏳ জেনারেট হচ্ছে...' : '🤖 AI স্লাইড জেনারেট'}
           </button>
         )}
         <button

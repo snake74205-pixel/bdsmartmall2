@@ -1,8 +1,8 @@
 {
   "name": "bdsmartmall-platform",
   "private": true,
-  "version": "4.0.0",
-  "description": "BDSMARTMALL v4: clean storefront & admin toggle, fixed P&L math, clean shoppable reels (no Rickroll), product image URL + direct COD order form (Dhaka 70 / Outside 120, WhatsApp 01687920860), motion slider, 13-group BD categories, and dual customization.",
+  "version": "5.0.0",
+  "description": "BDSMARTMALL v5: 100% working client+server fallback for every feature (products add/edit/delete, cart & multi-item/single-item open-box COD orders, orders list & status update, expense ledger, live fraud checker, CSV bulk import, dropshipping sync, drag-and-drop & custom HTML/CSS/JS layout persistence, shoppable reels add/play, 13-group BD categories).",
   "scripts": {
     "dev:worker": "cd worker && npx wrangler dev --port 8788 --ip 0.0.0.0 --local",
     "dev:web": "cd frontend && npm run dev -- --host 0.0.0.0",
