@@ -5,7 +5,6 @@ export interface SlideItem {
   title: string;
   desc: string;
   metric: string;
-  accent?: string;
 }
 
 const DEFAULT_SLIDES: SlideItem[] = [
@@ -14,25 +13,26 @@ const DEFAULT_SLIDES: SlideItem[] = [
     title: 'দেখে বুঝে নিন আপনার পছন্দের পণ্য',
     desc: 'ঢাকায় ৭০ টাকা এবং ঢাকার বাইরে ১২০ টাকা ডেলিভারি চার্জে নির্ভরযোগ্য সার্ভিস।',
     metric: '৳70 / ৳120',
-    accent: '#38bdf8',
   },
   {
     tag: '🧥 মেগা ফ্যাশন ও উইন্টার',
     title: 'জেন্টস, লেডিস ও কিডস কালেকশন',
     desc: 'হুডি, জ্যাকেট, শাড়ি, থ্রিপিস, পাঞ্জাবি ও ব্যাগ কালেকশন এক ছাদের নিচে।',
     metric: '13 Categories',
-    accent: '#c084fc',
   },
   {
     tag: '🚀 Cloudflare AI মোশন',
     title: 'স্মার্ট ক্যাটালগ ও দ্রুত অর্ডার',
-    desc: 'হোয়াটসঅ্যাপ সাপোর্ট ০১৬৮৭৯২০৮৬০ সহ সহজ অর্ডার ও লাইভ কাস্টমাইজেশন।',
-    metric: 'Live AI',
-    accent: '#22c55e',
+    desc: 'হোয়াটসঅ্যাপ সাপোর্ট ০১৬৮৭৯২০৮৬০ সহ সহজ ওপেন-বক্স COD অর্ডার।',
+    metric: 'Open-Box COD',
   },
 ];
 
-export const PremiumMotionSlider: React.FC = () => {
+interface SliderProps {
+  showAiButton?: boolean;
+}
+
+export const PremiumMotionSlider: React.FC<SliderProps> = ({ showAiButton = true }) => {
   const [slides, setSlides] = useState<SlideItem[]>(DEFAULT_SLIDES);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -87,25 +87,12 @@ export const PremiumMotionSlider: React.FC = () => {
         position: 'relative',
         overflow: 'hidden',
         borderRadius: '22px',
-        padding: '26px 22px',
+        padding: '24px 20px',
         background: 'linear-gradient(135deg, rgba(14,165,233,0.24), rgba(15,23,42,0.96) 52%, rgba(168,85,247,0.24))',
         border: '1px solid rgba(255,255,255,0.14)',
         boxShadow: '0 22px 55px rgba(0,0,0,0.45)',
       }}
     >
-      <div
-        style={{
-          position: 'absolute',
-          right: '-30px',
-          top: '-30px',
-          width: '140px',
-          height: '140px',
-          borderRadius: '999px',
-          background: 'radial-gradient(circle, rgba(56,189,248,0.28), transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
-
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
         <span style={{ display: 'inline-block', padding: '5px 12px', borderRadius: '999px', background: 'rgba(255,255,255,0.1)', fontSize: '0.82rem', fontWeight: 600 }}>
           {current.tag}
@@ -113,30 +100,32 @@ export const PremiumMotionSlider: React.FC = () => {
         <span style={{ fontWeight: 800, color: '#7dd3fc', fontSize: '0.9rem' }}>{current.metric}</span>
       </div>
 
-      <h2 style={{ margin: '12px 0 8px', fontSize: 'clamp(1.35rem, 3vw, 2.1rem)', fontWeight: 800, lineHeight: 1.25 }}>
+      <h2 style={{ margin: '12px 0 8px', fontSize: 'clamp(1.3rem, 3vw, 2rem)', fontWeight: 800, lineHeight: 1.25 }}>
         {current.title}
       </h2>
-      <p style={{ margin: '0 0 18px', color: '#cbd5e1', lineHeight: 1.6, fontSize: '0.95rem' }}>
+      <p style={{ margin: '0 0 18px', color: '#cbd5e1', lineHeight: 1.6, fontSize: '0.94rem' }}>
         {current.desc}
       </p>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-        <button
-          type="button"
-          onClick={generateAI}
-          disabled={loading}
-          style={{
-            padding: '10px 16px',
-            borderRadius: '12px',
-            border: 'none',
-            background: '#38bdf8',
-            color: '#06101d',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          {loading ? '⏳ AI তৈরি করছে...' : '🤖 AI স্লাইড জেনারেট'}
-        </button>
+        {showAiButton && (
+          <button
+            type="button"
+            onClick={generateAI}
+            disabled={loading}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              background: '#38bdf8',
+              color: '#06101d',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {loading ? '⏳ AI তৈরি করছে...' : '🤖 AI স্লাইড জেনারেট'}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setIndex((prev) => (prev + 1) % slides.length)}

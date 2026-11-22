@@ -27,7 +27,7 @@ export const CategoryListingGrid: React.FC<Props> = ({ selectedSubCategory, onSe
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: '1.15rem' }}>🗂️ প্রোডাক্ট লিস্টিং ক্যাটাগরি</h3>
-          <small style={{ color: '#94a3b8' }}>যেকোনো ক্যাটাগরি বা সাব-ক্যাটাগরিতে ট্যাপ করে প্রোডাক্ট ফিল্টার করুন</small>
+          <small style={{ color: '#94a3b8' }}>যেকোনো ক্যাটাগরি বা সাব-ক্যাটাগরিতে ট্যাপ করে প্রোডাক্ট দেখুন</small>
         </div>
         <input
           value={searchQuery}
@@ -45,7 +45,6 @@ export const CategoryListingGrid: React.FC<Props> = ({ selectedSubCategory, onSe
         />
       </div>
 
-      {/* Top Pill Filter */}
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '16px' }}>
         <button
           type="button"
@@ -89,7 +88,6 @@ export const CategoryListingGrid: React.FC<Props> = ({ selectedSubCategory, onSe
         })}
       </div>
 
-      {/* Category Banners + Subcategory Tiles */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
         {filteredGroups.map((group) => (
           <div
@@ -140,7 +138,6 @@ export const CategoryListingGrid: React.FC<Props> = ({ selectedSubCategory, onSe
                       flexDirection: 'column',
                       alignItems: 'center',
                       gap: '6px',
-                      transition: 'transform 0.18s ease',
                     }}
                   >
                     <span

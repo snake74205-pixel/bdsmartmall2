@@ -77,15 +77,15 @@ app.post('/api/ai-slider', async (c) => {
           metric: '৳70 / ৳120',
         },
         {
-          tag: '🧥 উইন্টার ও ফ্যাশন',
-          title: 'জেন্টস, লেডিস ও কিডস প্রিমিয়াম কালেকশন',
-          desc: 'হুডি, জ্যাকেট, শাড়ি, থ্রিপিস, পাঞ্জাবি ও গ্যাজেটসহ বিশাল ক্যাটালগ।',
-          metric: 'New Stock',
+          tag: '🧥 মেগা ফ্যাশন ও উইন্টার',
+          title: 'জেন্টস, লেডিস ও কিডস কালেকশন',
+          desc: 'হুডি, জ্যাকেট, শাড়ি, থ্রিপিস, পাঞ্জাবি ও ব্যাগ কালেকশন এক ছাদের নিচে।',
+          metric: '13 Categories',
         },
         {
           tag: '🎬 শপেবল রিলস',
           title: 'ভিডিও দেখুন, সাথে সাথেই অর্ডার করুন',
-          desc: 'হোয়াটসঅ্যাপ সাপোর্ট ০১৬৮৭৯২০৮৬০ সহ দ্রুত অর্ডার কনফার্মেশন।',
+          desc: 'হোয়াটসঅ্যাপ সাপোর্ট ০১৬৮৭৯২০৮৬০ সহ দ্রুত ওপেন-বক্স COD অর্ডার।',
           metric: 'Open-Box COD',
         },
       ],
@@ -117,6 +117,39 @@ app.post('/api/fraud-check', async (c) => {
         ? 'ভালো ডেলিভারি ইতিহাস — ফুল ওপেন-বক্স COD অনুমোদিত।'
         : 'ঝুঁকিপূর্ণ/অপর্যাপ্ত হিস্ট্রি — ডেলিভারি চার্জ অ্যাডভান্স নেওয়ার পরামর্শ দেওয়া হলো।',
   });
+});
+
+app.post('/api/orders', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const id = `ord_${Date.now()}`;
+  const zone = body.zone === 'outside' ? 'outside_dhaka' : 'inside_dhaka';
+  const deliveryFee =
+    zone === 'inside_dhaka'
+      ? Number(c.env.DELIVERY_INSIDE_DHAKA || 70)
+      : Number(c.env.DELIVERY_OUTSIDE_DHAKA || 120);
+  const subtotal = Number(body.subtotal || 0);
+  const totalAmount = subtotal + deliveryFee;
+
+  if (c.env.DB) {
+    await c.env.DB.prepare(
+      `INSERT INTO orders (id, customer_name, customer_phone, customer_address, zone, payment_method, subtotal, delivery_fee, total_amount, items_json)
+       VALUES (?, ?, ?, ?, ?, 'open_box_cod', ?, ?, ?, ?)`
+    )
+      .bind(
+        id,
+        String(body.customerName || 'Customer'),
+        String(body.customerPhone || ''),
+        String(body.customerAddress || ''),
+        zone,
+        subtotal,
+        deliveryFee,
+        totalAmount,
+        JSON.stringify(body.items || [])
+      )
+      .run();
+  }
+
+  return c.json({ ok: true, orderId: id, deliveryFee, totalAmount });
 });
 
 app.post('/api/products/bulk-import', async (c) => {

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS products (
   selling_price REAL NOT NULL,
   stock INTEGER DEFAULT 0,
   image_url TEXT DEFAULT '',
+  reel_url TEXT DEFAULT '',
   vendor_id TEXT DEFAULT 'bdsmartmall-official',
   source_type TEXT DEFAULT 'manual',
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
