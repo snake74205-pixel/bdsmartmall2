@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import PremiumMotionSlider from './components/PremiumMotionSlider';
+import CategoryListingGrid from './components/CategoryListingGrid';
+import { SubCategoryItem } from './data/categories';
 
-export type SectionId = 'slider' | 'custom_code_block' | 'products' | 'reels' | 'fraud_and_pnl';
+export type SectionId = 'slider' | 'categories' | 'custom_code_block' | 'products' | 'reels' | 'fraud_and_pnl';
 
 interface ProductItem {
   id: string;
   title: string;
+  category: string;
   buyingPrice: number;
   sellingPrice: number;
   stock: number;
@@ -16,6 +19,7 @@ const INITIAL_PRODUCTS: ProductItem[] = [
   {
     id: 'p1',
     title: 'প্রিমিয়াম কটন পোলো শার্ট',
+    category: 'পোলো শার্ট',
     buyingPrice: 420,
     sellingPrice: 790,
     stock: 35,
@@ -23,10 +27,20 @@ const INITIAL_PRODUCTS: ProductItem[] = [
   },
   {
     id: 'p2',
-    title: 'ওয়্যারলেস স্মার্ট অডিও বাডস',
-    buyingPrice: 850,
-    sellingPrice: 1450,
-    stock: 20,
+    title: 'সলিড উইন্টার হুডি',
+    category: 'সলিড হুডি',
+    buyingPrice: 550,
+    sellingPrice: 990,
+    stock: 28,
+    videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+  },
+  {
+    id: 'p3',
+    title: 'রেডিমেড থ্রিপিস কালেকশন',
+    category: 'রেডিমেড থ্রিপিস',
+    buyingPrice: 720,
+    sellingPrice: 1290,
+    stock: 22,
     videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
   },
 ];
@@ -43,14 +57,20 @@ const DEFAULT_CUSTOM_CSS = `.bd-custom-promo {
   border: 1px solid rgba(251,191,36,0.35);
 }
 .bd-custom-promo h3 { margin: 0 0 6px; color: #fbbf24; }
-.bd-custom-promo p { margin: 0; color: #e2e8f0; }`;
+.bd-custom-promo p { margin: 0; color: #e2e8f0; }
+@keyframes bdPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+}
+.bd-motion-card { animation: bdPulse 5s ease-in-out infinite; }`;
 
-const DEFAULT_CUSTOM_JS = `console.log("BDSMARTMALL Custom JS Active");`;
+const DEFAULT_CUSTOM_JS = `console.log("BDSMARTMALL v3 Motion + Dual Studio Active");`;
 
 export default function App() {
   const [builderMode, setBuilderMode] = useState<'drag' | 'code' | 'preview'>('drag');
   const [sections, setSections] = useState<SectionId[]>([
     'slider',
+    'categories',
     'custom_code_block',
     'products',
     'reels',
@@ -58,14 +78,15 @@ export default function App() {
   ]);
   const [draggedSection, setDraggedSection] = useState<SectionId | null>(null);
   const [layoutMsg, setLayoutMsg] = useState('');
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>('');
 
-  // Custom HTML / CSS / JS state
   const [customHtml, setCustomHtml] = useState(DEFAULT_CUSTOM_HTML);
   const [customCss, setCustomCss] = useState(DEFAULT_CUSTOM_CSS);
   const [customJs, setCustomJs] = useState(DEFAULT_CUSTOM_JS);
 
   const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
   const [newTitle, setNewTitle] = useState('');
+  const [newCategory, setNewCategory] = useState('সলিড হুডি');
   const [newBuy, setNewBuy] = useState('');
   const [newSell, setNewSell] = useState('');
   const [newStock, setNewStock] = useState('10');
@@ -93,6 +114,12 @@ export default function App() {
       })
       .catch(() => {});
   }, [apiBase]);
+
+  const handleSelectSubCategory = (item: SubCategoryItem, groupTitle: string) => {
+    setSelectedSubCategory(item.name);
+    setNewCategory(item.name);
+    setLayoutMsg(`${groupTitle} → ${item.name} (${item.count} আইটেম) সিলেক্ট হয়েছে`);
+  };
 
   const runCustomJs = () => {
     try {
@@ -138,6 +165,7 @@ export default function App() {
       {
         id: `p_${Date.now()}`,
         title: newTitle.trim(),
+        category: newCategory.trim() || 'General',
         buyingPrice: buy,
         sellingPrice: sell,
         stock: Number(newStock) || 1,
@@ -172,13 +200,14 @@ export default function App() {
     const lines = text.split(/\r?\n/).filter(Boolean).slice(1);
     const parsed = lines
       .map((line, i) => {
-        const [title, buying, selling, stock] = line.split(',');
+        const [title, buying, selling, stock, category] = line.split(',');
         return {
           id: `csv_${Date.now()}_${i}`,
           title: (title || '').trim(),
           buying_price: Number(buying || 0),
           selling_price: Number(selling || 0),
           stock: Number(stock || 10),
+          category: (category || 'General').trim(),
         };
       })
       .filter((p) => p.title && p.selling_price > 0);
@@ -198,6 +227,7 @@ export default function App() {
         ...chunk.map((c) => ({
           id: c.id,
           title: c.title,
+          category: c.category,
           buyingPrice: c.buying_price,
           sellingPrice: c.selling_price,
           stock: c.stock,
@@ -225,18 +255,23 @@ export default function App() {
   };
 
   const shareProduct = (p: ProductItem) => {
-    const shareText = `${p.title} — ৳${p.sellingPrice} | ওপেন-বক্স COD (ঢাকা ৳70 / বাইরে ৳120) | WhatsApp: 01687920860`;
+    const shareText = `${p.title} (${p.category}) — ৳${p.sellingPrice} | ওপেন-বক্স COD (ঢাকা ৳70 / বাইরে ৳120) | WhatsApp: 01687920860`;
     navigator.clipboard?.writeText(shareText);
     alert(`শেয়ার কপি রেডি:
 ${shareText}`);
   };
+
+  const visibleProducts = selectedSubCategory
+    ? products.filter((p) => p.category.toLowerCase().includes(selectedSubCategory.toLowerCase()))
+    : products;
 
   const totalSales = products.reduce((acc, p) => acc + p.sellingPrice, 0);
   const totalCost = products.reduce((acc, p) => acc + p.buyingPrice, 0);
   const netProfit = totalSales - totalCost - expenses;
 
   const sectionLabels: Record<SectionId, string> = {
-    slider: 'হিরো মোশন স্লাইডার',
+    slider: 'হিরো মোশন গ্রাফিক্স ও স্লাইডার',
+    categories: 'প্রোডাক্ট লিস্টিং ক্যাটাগরি (১৩ গ্রুপ)',
     custom_code_block: 'কাস্টম HTML / CSS / JS সেকশন',
     products: 'প্রোডাক্ট, লাভ হিসাব ও শেয়ার',
     reels: 'নেটিভ শপেবল রিলস ফিড',
@@ -245,10 +280,8 @@ ${shareText}`);
 
   return (
     <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '20px 16px 60px' }}>
-      {/* Live Custom CSS Injection */}
       <style>{customCss}</style>
 
-      {/* Top Bar */}
       <header style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800 }}>BDSMARTMALL</h1>
@@ -257,7 +290,6 @@ ${shareText}`);
           </small>
         </div>
 
-        {/* Dual Customization Controls */}
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             type="button"
@@ -292,7 +324,6 @@ ${shareText}`);
 
       {layoutMsg && <div style={{ marginBottom: '14px', color: '#4ade80', fontSize: '0.9rem' }}>{layoutMsg}</div>}
 
-      {/* Custom HTML / CSS / JS Editor Panel */}
       {builderMode === 'code' && (
         <div style={{ marginBottom: '20px', padding: '16px', borderRadius: '18px', background: '#0b1220', border: '1px solid rgba(192,132,252,0.4)' }}>
           <h3 style={{ marginTop: 0, color: '#e9d5ff' }}>কাস্টম কোড এডিটর (HTML + CSS + JS)</h3>
@@ -316,7 +347,6 @@ ${shareText}`);
         </div>
       )}
 
-      {/* Draggable Sections */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {sections.map((secId, idx) => (
           <section
@@ -347,15 +377,37 @@ ${shareText}`);
 
             {secId === 'slider' && <PremiumMotionSlider />}
 
+            {secId === 'categories' && (
+              <CategoryListingGrid
+                selectedSubCategory={selectedSubCategory}
+                onSelectSubCategory={handleSelectSubCategory}
+              />
+            )}
+
             {secId === 'custom_code_block' && (
               <div dangerouslySetInnerHTML={{ __html: customHtml }} />
             )}
 
             {secId === 'products' && (
               <div>
-                <h3 style={{ marginTop: 0 }}>প্রোডাক্ট যোগ করুন (কেনা দাম ও বিক্রির দাম সহ)</h3>
-                <form onSubmit={addProduct} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0 }}>
+                    প্রোডাক্ট লিস্ট {selectedSubCategory ? `(${selectedSubCategory})` : ''}
+                  </h3>
+                  {selectedSubCategory && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSubCategory('')}
+                      style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #38bdf8', background: 'transparent', color: '#38bdf8', cursor: 'pointer', fontSize: '0.8rem' }}
+                    >
+                      সব প্রোডাক্ট দেখুন
+                    </button>
+                  )}
+                </div>
+
+                <form onSubmit={addProduct} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '16px' }}>
                   <input placeholder="পণ্যের নাম" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
+                  <input placeholder="ক্যাটাগরি" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
                   <input type="number" placeholder="কেনা দাম (৳)" value={newBuy} onChange={(e) => setNewBuy(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
                   <input type="number" placeholder="বিক্রির দাম (৳)" value={newSell} onChange={(e) => setNewSell(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
                   <input type="number" placeholder="স্টক" value={newStock} onChange={(e) => setNewStock(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} />
@@ -363,10 +415,11 @@ ${shareText}`);
                 </form>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
-                  {products.map((p) => {
+                  {(visibleProducts.length ? visibleProducts : products).map((p) => {
                     const profitPerUnit = p.sellingPrice - p.buyingPrice;
                     return (
                       <div key={p.id} style={{ padding: '16px', borderRadius: '16px', background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ fontSize: '0.78rem', color: '#c084fc', marginBottom: '4px' }}>{p.category}</div>
                         <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>{p.title}</div>
                         <div style={{ marginTop: '6px', color: '#38bdf8', fontWeight: 800 }}>বিক্রয়: ৳{p.sellingPrice}</div>
                         <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '4px' }}>
@@ -428,7 +481,7 @@ ${shareText}`);
 
                 <div style={{ padding: '16px', borderRadius: '16px', background: '#0b1220', border: '1px solid rgba(255,255,255,0.1)' }}>
                   <h4 style={{ marginTop: 0 }}>📦 আনলিমিটেড CSV ও ড্রপশিপিং API</h4>
-                  <label style={{ display: 'block', fontSize: '0.82rem', color: '#94a3b8', marginBottom: '6px' }}>CSV আপলোড (title,buying,selling,stock):</label>
+                  <label style={{ display: 'block', fontSize: '0.82rem', color: '#94a3b8', marginBottom: '6px' }}>CSV আপলোড (title,buying,selling,stock,category):</label>
                   <input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} style={{ fontSize: '0.82rem', marginBottom: '8px' }} />
                   {csvStatus && <div style={{ fontSize: '0.82rem', color: '#4ade80', marginBottom: '8px' }}>{csvStatus}</div>}
                   <button type="button" onClick={syncDropshipping} style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#a855f7', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}>

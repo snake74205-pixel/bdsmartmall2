@@ -5,6 +5,7 @@ export interface SlideItem {
   title: string;
   desc: string;
   metric: string;
+  accent?: string;
 }
 
 const DEFAULT_SLIDES: SlideItem[] = [
@@ -13,18 +14,21 @@ const DEFAULT_SLIDES: SlideItem[] = [
     title: 'দেখে বুঝে নিন আপনার পছন্দের পণ্য',
     desc: 'ঢাকায় ৭০ টাকা এবং ঢাকার বাইরে ১২০ টাকা ডেলিভারি চার্জে নির্ভরযোগ্য সার্ভিস।',
     metric: '৳70 / ৳120',
+    accent: '#38bdf8',
   },
   {
-    tag: '🎬 শপেবল রিলস',
-    title: 'ভিডিও দেখুন, সাথে সাথেই অর্ডার করুন',
-    desc: 'ফেইসবুক ও ইউটিউব রিলস স্টাইলের ফিড থেকে সরাসরি প্রোডাক্ট কিনুন।',
-    metric: 'Shoppable',
+    tag: '🧥 মেগা ফ্যাশন ও উইন্টার',
+    title: 'জেন্টস, লেডিস ও কিডস কালেকশন',
+    desc: 'হুডি, জ্যাকেট, শাড়ি, থ্রিপিস, পাঞ্জাবি ও ব্যাগ কালেকশন এক ছাদের নিচে।',
+    metric: '13 Categories',
+    accent: '#c084fc',
   },
   {
-    tag: '🚀 Cloudflare AI',
-    title: 'এক ক্লিকেই নতুন ক্যাম্পেইন স্লাইডার',
-    desc: 'Workers AI দিয়ে তাৎক্ষণিক বাংলা প্রোমোশনাল স্লাইড তৈরি করুন।',
+    tag: '🚀 Cloudflare AI মোশন',
+    title: 'স্মার্ট ক্যাটালগ ও দ্রুত অর্ডার',
+    desc: 'হোয়াটসঅ্যাপ সাপোর্ট ০১৬৮৭৯২০৮৬০ সহ সহজ অর্ডার ও লাইভ কাস্টমাইজেশন।',
     metric: 'Live AI',
+    accent: '#22c55e',
   },
 ];
 
@@ -56,7 +60,7 @@ export const PremiumMotionSlider: React.FC = () => {
       if (data.ok && Array.isArray(data.slides)) {
         setSlides(data.slides);
         setIndex(0);
-        setMsg('AI থেকে নতুন স্লাইড আপডেট হয়েছে');
+        setMsg('AI থেকে নতুন মোশন স্লাইড আপডেট হয়েছে');
       } else {
         setMsg(data.error || 'স্লাইড তৈরি করা যায়নি');
       }
@@ -71,6 +75,7 @@ export const PremiumMotionSlider: React.FC = () => {
 
   return (
     <div
+      className="bd-motion-card"
       onTouchStart={(e) => { touchX.current = e.changedTouches[0].screenX; }}
       onTouchEnd={(e) => {
         const diff = touchX.current - e.changedTouches[0].screenX;
@@ -79,22 +84,42 @@ export const PremiumMotionSlider: React.FC = () => {
         }
       }}
       style={{
-        borderRadius: '20px',
-        padding: '28px 24px',
-        background: 'linear-gradient(135deg, rgba(14,165,233,0.22), rgba(15,23,42,0.96) 55%, rgba(168,85,247,0.2))',
-        border: '1px solid rgba(255,255,255,0.12)',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.4)',
+        position: 'relative',
+        overflow: 'hidden',
+        borderRadius: '22px',
+        padding: '26px 22px',
+        background: 'linear-gradient(135deg, rgba(14,165,233,0.24), rgba(15,23,42,0.96) 52%, rgba(168,85,247,0.24))',
+        border: '1px solid rgba(255,255,255,0.14)',
+        boxShadow: '0 22px 55px rgba(0,0,0,0.45)',
       }}
     >
-      <span style={{ display: 'inline-block', padding: '5px 12px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', fontSize: '0.82rem' }}>
-        {current.tag}
-      </span>
-      <h2 style={{ margin: '12px 0 8px', fontSize: 'clamp(1.4rem, 3vw, 2.2rem)', fontWeight: 800 }}>
+      <div
+        style={{
+          position: 'absolute',
+          right: '-30px',
+          top: '-30px',
+          width: '140px',
+          height: '140px',
+          borderRadius: '999px',
+          background: 'radial-gradient(circle, rgba(56,189,248,0.28), transparent 70%)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-block', padding: '5px 12px', borderRadius: '999px', background: 'rgba(255,255,255,0.1)', fontSize: '0.82rem', fontWeight: 600 }}>
+          {current.tag}
+        </span>
+        <span style={{ fontWeight: 800, color: '#7dd3fc', fontSize: '0.9rem' }}>{current.metric}</span>
+      </div>
+
+      <h2 style={{ margin: '12px 0 8px', fontSize: 'clamp(1.35rem, 3vw, 2.1rem)', fontWeight: 800, lineHeight: 1.25 }}>
         {current.title}
       </h2>
-      <p style={{ margin: '0 0 18px', color: '#cbd5e1', lineHeight: 1.6 }}>
+      <p style={{ margin: '0 0 18px', color: '#cbd5e1', lineHeight: 1.6, fontSize: '0.95rem' }}>
         {current.desc}
       </p>
+
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
         <button
           type="button"
@@ -119,14 +144,34 @@ export const PremiumMotionSlider: React.FC = () => {
             padding: '10px 14px',
             borderRadius: '12px',
             border: '1px solid rgba(255,255,255,0.2)',
-            background: 'transparent',
+            background: 'rgba(255,255,255,0.04)',
             color: '#f8fafc',
             cursor: 'pointer',
+            fontWeight: 600,
           }}
         >
           পরবর্তী →
         </button>
-        <span style={{ marginLeft: 'auto', fontWeight: 800, color: '#7dd3fc' }}>{current.metric}</span>
+
+        <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Slide ${i + 1}`}
+              onClick={() => setIndex(i)}
+              style={{
+                width: i === index ? '22px' : '8px',
+                height: '8px',
+                borderRadius: '999px',
+                border: 'none',
+                background: i === index ? '#38bdf8' : 'rgba(255,255,255,0.28)',
+                cursor: 'pointer',
+                transition: 'all 0.25s ease',
+              }}
+            />
+          ))}
+        </div>
       </div>
       {msg && <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#7dd3fc' }}>{msg}</div>}
     </div>

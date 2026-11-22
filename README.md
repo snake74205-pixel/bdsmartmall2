@@ -1,10 +1,8 @@
-# BDSMARTMALL — Ready-to-Upload GitHub & Cloudflare Package (v2)
+# BDSMARTMALL — Ready-to-Upload GitHub & Cloudflare Package (v3)
 
-আপনার আসল Cloudflare D1 (`bd-smartmall`: `8c1787a3-7483-4c56-ba7e-d6c399c30fc3`) এবং KV (`bd_smartmall`: `d249328b3050412ab446dee0448c00f2`) আইডি বসানো এবং **ডুয়াল কাস্টমাইজেশন (ড্র্যাগ-অ্যান্ড-ড্রপ + কাস্টম HTML/CSS/JS)** যুক্ত করা সম্পূর্ণ প্যাকেজ।
+আপনার স্ক্রিনশট অনুযায়ী প্রিমিয়াম মোশন গ্রাফিক্স ও স্লাইডার, পূর্ণাঙ্গ ক্যাটাগরি লিস্টিং (জেন্টস উইন্টার, কিডস উইন্টার, লেডিস উইন্টার, ছেলেদের পোশাক, মেয়েদের পোশাক, বেবি কালেকশন, হোম অ্যান্ড ডেকোর, ইলেকট্রনিক্স এবং গ্যাজেট, জুয়েলারি অ্যান্ড এক্সেসরিজ, কাপল অ্যান্ড কম্বো, সিজনাল প্রোডাক্ট, ব্যাগ কালেকশন, অন্যান্য ক্যাটাগরি), এবং Storefront + Admin Dual Customization (Drag-and-Drop + Custom HTML/CSS/JS) যুক্ত করা আপডেটেড প্যাকেজ।
 
-## দ্রুত লাইভ করার ধাপ
-1. এই ফোল্ডারের সব ফাইল আপনার `snake74205-pixel/bdsmartmall` GitHub রিপোজিটরিতে আপলোড করুন।
-2. GitHub Repository **Settings > Secrets and variables > Actions**-এ নিচের দুটি Secret যুক্ত করুন:
-   - `CLOUDFLARE_API_TOKEN`
-   - `CLOUDFLARE_ACCOUNT_ID`
-3. `main` ব্রাঞ্চে পুশ/আপলোড করলেই D1 স্কিমা রান হয়ে Worker এবং Pages অটোমেটিক লাইভ হয়ে যাবে।
+- D1: `bd-smartmall` (`8c1787a3-7483-4c56-ba7e-d6c399c30fc3`)
+- KV: `bd_smartmall` (`d249328b3050412ab446dee0448c00f2`)
+- ডেলিভারি চার্জ: ঢাকা ৭০ টাকা, ঢাকার বাইরে ১২০ টাকা (ওপেন-বক্স COD)
+- সাপোর্ট হোয়াটসঅ্যাপ: `01687920860`

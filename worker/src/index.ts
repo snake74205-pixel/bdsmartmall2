@@ -35,7 +35,6 @@ app.get('/', (c) => c.json({
 
 app.get('/api/health', (c) => c.json({ ok: true, service: 'bdsmartmall-worker' }));
 
-// AI Motion Slider Generator
 app.post('/api/ai-slider', async (c) => {
   try {
     const body = await c.req.json().catch(() => ({}));
@@ -78,16 +77,16 @@ app.post('/api/ai-slider', async (c) => {
           metric: '৳70 / ৳120',
         },
         {
-          tag: '🎬 শপেবল রিলস',
-          title: 'ভিডিও দেখুন, সাথে সাথেই অর্ডার করুন',
-          desc: 'রিলস ফিড থেকেই সরাসরি প্রোডাক্ট দেখে দ্রুত অর্ডার প্লেস করার সুবিধা।',
-          metric: 'Instant Buy',
+          tag: '🧥 উইন্টার ও ফ্যাশন',
+          title: 'জেন্টস, লেডিস ও কিডস প্রিমিয়াম কালেকশন',
+          desc: 'হুডি, জ্যাকেট, শাড়ি, থ্রিপিস, পাঞ্জাবি ও গ্যাজেটসহ বিশাল ক্যাটালগ।',
+          metric: 'New Stock',
         },
         {
-          tag: '🛡️ স্মার্ট ফ্রড চেক',
-          title: 'নিরাপদ অর্ডার ও দ্রুত কুরিয়ার ডিসপ্যাচ',
-          desc: 'হোয়াটসঅ্যাপ সাপোর্ট ০১৬৮৭৯২০৮৬০ সহ স্মার্ট স্টোর অপারেশন।',
-          metric: 'Safe Order',
+          tag: '🎬 শপেবল রিলস',
+          title: 'ভিডিও দেখুন, সাথে সাথেই অর্ডার করুন',
+          desc: 'হোয়াটসঅ্যাপ সাপোর্ট ০১৬৮৭৯২০৮৬০ সহ দ্রুত অর্ডার কনফার্মেশন।',
+          metric: 'Open-Box COD',
         },
       ],
     });
@@ -96,7 +95,6 @@ app.post('/api/ai-slider', async (c) => {
   }
 });
 
-// Fraud Checker Endpoint
 app.post('/api/fraud-check', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const phone = String(body.phone || '').replace(/[^0-9]/g, '');
@@ -121,7 +119,6 @@ app.post('/api/fraud-check', async (c) => {
   });
 });
 
-// Unlimited Chunked CSV Bulk Product Upload
 app.post('/api/products/bulk-import', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const rows = Array.isArray(body.products) ? body.products : [];
@@ -153,7 +150,6 @@ app.post('/api/products/bulk-import', async (c) => {
   return c.json({ ok: true, importedCount: imported });
 });
 
-// Dropshipping Provider Sync Endpoint
 app.post('/api/dropshipping/sync', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const provider = String(body.provider || 'CJ Dropshipping');
@@ -170,7 +166,6 @@ app.post('/api/dropshipping/sync', async (c) => {
   });
 });
 
-// Dual Customization (Drag & Drop + Custom HTML/CSS/JS) Save & Load
 app.get('/api/layout', async (c) => {
   if (c.env.KV) {
     const cached = await c.env.KV.get('layout:default');

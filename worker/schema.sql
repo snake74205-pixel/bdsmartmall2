@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS products (
   sku TEXT UNIQUE,
   title TEXT NOT NULL,
   category TEXT DEFAULT 'General',
+  sub_category TEXT DEFAULT '',
   buying_price REAL DEFAULT 0,
   regular_price REAL DEFAULT 0,
   selling_price REAL NOT NULL,
